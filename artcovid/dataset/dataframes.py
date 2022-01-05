@@ -16,42 +16,127 @@
 #
 
 # Imports
+from typing import Dict
 import h5py
 import pandas as pd
 import json
+import os
+
+# Imports ArtCOVID
+import artcovid.swissdata as sw
+
+
+# Split datetime field
+def split_datetime_field(
+        df: pd.DataFrame,
+        prop_name: str,
+) -> pd.DataFrame:
+    r"""
+
+    :return:
+    """
+    # Create year
+    df[prop_name + "_year"] = pd.Categorical(
+        values=df[prop_name].dt.year,
+        categories=list(range(2019, 2023))
+    )
+
+    # and month
+    df[prop_name + "_month"] = pd.Categorical(
+        values=df[prop_name].dt.month,
+        categories=list(range(1, 13))
+    )
+
+    # and day of month
+    df[prop_name + "_day_of_month"] = pd.Categorical(
+        values=df[prop_name].dt.day,
+        categories=list(range(1, 32))
+    )
+
+    # day of week
+    df[prop_name + "_dayofweek"] = pd.Categorical(
+        values=df[prop_name].dt.dayofweek,
+        categories=list(range(0, 7))
+    )
+
+    # day of week
+    df[prop_name + "_day_name"] = pd.Categorical(
+        values=df[prop_name].dt.day_name(),
+        categories=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    )
+# end split_datetime_field
+
+
+# Load models definitions
+def load_models_definitions(
+    dataset_root: str
+) -> Dict:
+    r"""Load models definitions.
+
+    :param dataset_root:
+    :return:
+    """
+    with open(os.path.join(dataset_root, "artcovid.schema.json"), 'r') as md_fd:
+        # Load JSON
+        return json.load(md_fd)
+    # end with
+# end load_models_definitions
 
 
 # Load data
 def load_dataset(
-        h5_file: str,
+        dataset_root: str,
         dataset_name: str,
         collection_name: str,
-        models_defs_file: str
 ) -> pd.DataFrame:
-    r"""Load data in the H5 file and return a Pandas DataFrame.
+    r"""Load data from the root directory and return a Pandas DataFrame.
 
-    :param h5_file: Path to the H5 file.
-    :param dataset_name: Path in the H5 file to the dataset.
-    :param models_defs_file: Path to the models definitions file.
+    :param dataset_root: Path to the root directory of the ArtCOVID dataset.
+    :param dataset_name: Name of the dataset to load.
+    :param collection_name: Name of the collection to load.
     :return: A Pandas DataFrame.
     """
-    # Open the H5 file
-    with h5py.File(h5_file, 'r') as h5_fd, open(models_defs_file, 'r') as md_fd:
-        # Load the dataset
-        h5_dataset = h5_fd["{}/{}".format(dataset_name, collection_name)]
+    # Models definitions
+    models_definitions = load_models_definitions(dataset_root)
 
-        # Load models definitions
-        models_definitions = json.load(md_fd)
+    # Get model name
+    if dataset_name == "swissdata":
+        model_name = sw.SWISSDATA_SCHEMA_FILES[collection_name]
+    # end if
 
-        # Get list of column names
-        col_names = list(h5_dataset.dtype.fields.keys())
+    # Get model definition and properties
+    model_def = models_definitions["definitions"][dataset_name][model_name]
+    model_properties = model_def['properties']
 
-        # Get model definition
-        model_definition = models_definitions["definitions"][dataset_name][collection_name]
-        print(h5_dataset)
-        print(h5_dataset.dtype)
-        print(h5_dataset[0])
-        print(col_names)
-        print(model_definition)
-    # end with
+    # Read CSV file
+    df = pd.read_csv(
+        os.path.join(dataset_root, dataset_name, collection_name + ".csv"),
+        # parse_dates=['date', 'version'],
+        # date_parser=custom_date_parser
+    )
+
+    # For each field
+    for prop_name in list(df.columns):
+        print("Prop. name: {}".format(prop_name))
+        # Prop. description
+        prop_desc = model_properties[prop_name]
+
+        # Prop type
+        if prop_desc['panda_type'] == 'datetime':
+            # Transform to datetime
+            df[prop_name] = pd.to_datetime(df[prop_name], format=prop_desc['format'])
+
+            # Do we split in year, month, day?
+            if 'split' in prop_desc and prop_desc['split']:
+                split_datetime_field(df, prop_name)
+            # end if
+        elif prop_desc['panda_type'] == 'category':
+            df[prop_name] = pd.Categorical(
+                values=df[prop_name],
+                categories=prop_desc['categories']
+            )
+        # end if
+    # end for
+
+    return df
 # end load_dataset

@@ -18,6 +18,8 @@
 # Imports
 import pandas as pd
 import numpy as np
+from datetime import datetime
+import re
 
 # Import ArtCOVID
 from artcovid.dataset import load_dataset
@@ -39,9 +41,106 @@ from artcovid.dataset import load_dataset
 # s = pd.Series(["a", "b", "c", "a"], dtype="category")
 # print(s)
 
-load_dataset(
-    "/home/schaetti/Projets/ZUCKER/YouTube/Artificialis Code/ArtCOVID/datasets/artcovid_dataset.h5",
+# Load dataset
+covid_df = load_dataset(
+    "/home/schaetti/Projets/ZUCKER/YouTube/Artificialis Code/ArtCOVID/datasets/",
     "swissdata",
-    "COVID19AdministeredDoses_vaccine",
-    "/home/schaetti/Projets/ZUCKER/YouTube/Artificialis Code/ArtCOVID/datasets/artcovid.schema.json"
+    "COVID19Cases_geoRegion"
 )
+
+print(covid_df)
+print(covid_df.dtypes)
+print(list(covid_df.columns))
+# print(covid_df['datum'])
+# print(pd.Categorical(values=covid_df['datum'].dt.month, categories=list(range(1, 13))))
+
+# date_parser = lambda x: datetime.strptime(x, "%Y-%m-%d")
+# version_date_parser = lambda x: datetime.strptime(x, "%Y-%m-%d_%H-%M-%S")
+#
+#
+# # Custom date parser
+# def custom_date_parser(
+#         date_string: str
+# ) -> datetime.date:
+#     r"""Custom date parser.
+#
+#     :param date_string: Date as a string.
+#     :return: Datetime
+#     """
+#     # Regex
+#     version_date_format = r"^[0-9]+\-[0-9]+\-[0-9]+_[0-9]+\-[0-9]+\-[0-9]+$"
+#     date_format = r"^[0-9]+\-[0-9]+\-[0-9]+$"
+#
+#     # Parse date
+#     if len(re.findall(version_date_format, date_string)) == 1:
+#         return datetime.strptime(date_string, "%Y-%m-%d_%H-%M-%S")
+#     elif len(re.findall(date_format, date_string)) == 1:
+#         return datetime.strptime(date_string, "%Y-%m-%d")
+#     else:
+#         raise ValueError("Unknown date format for \"{}\"".format(date_string))
+#     # end if
+# # end custom_date_parser
+#
+#
+# df = pd.read_csv(
+#     "/home/schaetti/Projets/ZUCKER/YouTube/Artificialis Code/ArtCOVID/datasets/swissdata/data/COVID19AdministeredDoses_vaccine.csv",
+#     parse_dates=['date', 'version'],
+#     date_parser=custom_date_parser
+# )
+#
+# df['geoRegion'] = pd.Categorical(
+#     values=df['geoRegion'],
+#     categories=[
+#         "AG",
+#         "AI",
+#         "AR",
+#         "BE",
+#         "BL",
+#         "BS",
+#         "CH",
+#         "CHFL",
+#         "FL",
+#         "FR",
+#         "GE",
+#         "GL",
+#         "GR",
+#         "JU",
+#         "LU",
+#         "NE",
+#         "NW",
+#         "OW",
+#         "SG",
+#         "SH",
+#         "SO",
+#         "SZ",
+#         "TG",
+#         "TI",
+#         "UR",
+#         "VD",
+#         "VS",
+#         "ZG",
+#         "ZH",
+#         "all",
+#         "neighboring_chfl",
+#         "unknown"
+#     ]
+# )
+#
+# df['vaccine'] = pd.Categorical(
+#     values=df['vaccine'],
+#     categories=["johnson_johnson", "moderna", "pfizer_biontech"]
+# )
+#
+# df['granularity'] = pd.Categorical(
+#     values=df['granularity'],
+#     categories=["detailed", "summary"]
+# )
+#
+# print(df)
+# print(df.dtypes)
+# print(df.columns)
+# print(df.ndim)
+# print(df.shape)
+# print(df['granularity'])
+# print(df['granularity'].cat.codes)
+

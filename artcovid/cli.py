@@ -28,7 +28,7 @@ import zipfile
 
 # Imports local
 from artcovid.data_file import create_h5_file
-from artcovid.swissdata.tools import download_swiss_dataset, convert_swiss_dataset
+import artcovid.swissdata as sw
 from artcovid.owid_tools import download_OWID_dataset
 from artcovid.datagouvfr_tools import download_datagouvfr_dataset
 
@@ -44,61 +44,85 @@ def main():
 
 
 @main.command("download")
-@click.option("--h5file", type=str, required=True, help="Path to the output H5 file")
+@click.option("--dataset-root", type=str, required=True, help="Path to the root destination directory of the dataset")
+@click.option("--h5file", type=str, required=False, help="Path to the output H5 file")
 @click.option("--models-definitions-file", type=str, required=True, help="Path to the models definitions JSON file (output)")
 @click.option("--swissdata/--no-swissdata", default=True, help="Download data from SwissData")
 @click.option("--owid/--no-owid", default=True, help="Download data from Our World In Data (OWID)")
 @click.option("--datagouvfr/--no-datagouvfr", default=True, help="Download data from data.gouv.fr")
+@click.option("--radiocanada/--no-radiocanada", default=True, help="Download data from Radio Canada")
 def download(
+        dataset_root: str,
         h5file: str,
         models_definitions_file: str,
         swissdata: bool,
         owid: bool,
-        datagouvfr: bool
+        datagouvfr: bool,
+        radiocanada: bool
 ):
     r"""Download the ArtCOVID dataset from various sources.
 
+    :param dataset_root: Path to the root destination directory of the dataset
     :param models_definitions_file:
     :param h5file: Path to the output H5 file.
     :param swissdata: Download data from SwissData.
     :param owid: Download data from Our World In Data (OWID).
     :param datagouvfr: Download data from data.gouv.fr.
+    :param radiocanada: Download data from radio-canada.
     """
     # Create H5 file
-    h5_file, owid_gr, swissdata_gr, datagouvfr_gr = create_h5_file(h5file)
+    if h5file is not None:
+        h5_fd, owid_gr, swissdata_gr, datagouvfr_gr = create_h5_file(h5file)
+    # end if
 
-    # Use a temporary directory to put data
-    with tempfile.TemporaryDirectory() as tmp_output_dir:
-        # Create empty model definitions
-        models_definitions = {
-            '$id': "https://www.nilsschaetti.com/artcovid",
-            'definitions': {}
-        }
+    # Create empty model definitions
+    models_definitions = {
+        '$id': "https://www.nilsschaetti.com/artcovid",
+        'definitions': {}
+    }
 
-        # Download and convert swiss dataset
-        if swissdata:
-            # Downloading SwissData dataset
-            print("\tDownloading SwissData COVID dataset")
-            download_swiss_dataset(dest_dir=tmp_output_dir)
+    # Download and convert swiss dataset
+    if swissdata:
+        # Log
+        print("SwissData:")
 
-            # Convert the SwissData dataset to H5 file
-            print("\tConverting the SwissData COVID dataset")
-            models_definitions = convert_swiss_dataset(
-                data_dir=tmp_output_dir,
+        # Downloading SwissData dataset
+        print("\tDownloading SwissData COVID dataset")
+        sw.download_swissdata_dataset(dest_dir=dataset_root)
+
+        # Update model definitions
+        models_definitions = sw.extract_models_definitions(
+            data_dir=dataset_root,
+            models_definitions=models_definitions
+        )
+
+        # Convert the SwissData dataset to H5 file
+        if h5file is not None:
+            print("\tConverting the SwissData COVID dataset to H5 file")
+            models_definitions = sw.swissdata_dataset_to_h5(
+                data_dir=dataset_root,
                 h5_group=swissdata_gr,
                 models_definitions=models_definitions
             )
         # end if
 
-        # Download the OWID COVID-19 dataset
-        if owid:
-            download_OWID_dataset(dest_dir=tmp_output_dir)
-        # end if
+        # Clean SwissData dataset
+        sw.clean_dataset_directory(data_dir=dataset_root)
+    # end if
 
-        # Download datagouvfr COVID-19 dataset
-        if datagouvfr:
-            download_datagouvfr_dataset(output_dir=tmp_output_dir)
-        # end if
+    # Download the OWID COVID-19 dataset
+    if owid:
+        download_OWID_dataset(dest_dir=dataset_root)
+    # end if
+
+    # Download datagouvfr COVID-19 dataset
+    if datagouvfr:
+        download_datagouvfr_dataset(output_dir=dataset_root)
+    # end if
+
+    # Download Radio-Canada COVID-19 dataset
+    if radiocanada:
+        pass
     # end if
 
     # Save models definitions
@@ -108,7 +132,9 @@ def download(
     # end with
 
     # Close file
-    h5_file.close()
+    if h5file is not None:
+        h5_fd.close()
+    # end if
 # end download
 
 
